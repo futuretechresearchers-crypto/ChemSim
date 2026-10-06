@@ -24,7 +24,7 @@ export function TeacherClassrooms() {
     if (!user || !name.trim()) return;
     setSaving(true); setError(null); setStatus(null);
     try {
-      const created = await createClassroom(user.id, name);
+      const created = await createClassroom({ name });
       setClassrooms(current => [created, ...current]); setName(''); setStatus('Classroom created. Share its invitation link with your students.');
     } catch { setError('Classroom could not be created. Please verify that classroom creation is enabled for your teacher account.'); }
     finally { setSaving(false); }

@@ -1,0 +1,77 @@
+.lewis-structure-view {
+  width: 100%;
+  min-width: 0;
+  color: hsl(var(--foreground, 250 24% 18%));
+}
+.lewis-electron-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .5rem 1.25rem;
+  padding: .6rem .75rem;
+  border-radius: 12px;
+  background: hsl(var(--muted, 250 30% 96%));
+  color: hsl(var(--muted-foreground, 250 12% 42%));
+  font-size: .82rem;
+}
+.lewis-canvas-wrap {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border, 250 20% 88%));
+  border-radius: 16px;
+  background: linear-gradient(145deg, #fff 0%, #f8f6ff 100%);
+}
+.lewis-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(56vh, 440px);
+}
+.lewis-bond-line {
+  stroke: #514276;
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.lewis-bond.ionic .lewis-bond-line {
+  stroke: #9b83cd;
+  stroke-dasharray: 8 10;
+  stroke-width: 3;
+}
+.lewis-atom-disc {
+  fill: #fff;
+  stroke: #8873b8;
+  stroke-width: 3;
+}
+.lewis-atom-symbol {
+  fill: #32294c;
+  font: 700 22px system-ui, sans-serif;
+}
+.lewis-formal-charge {
+  fill: #7b3fb2;
+  font: 700 17px system-ui, sans-serif;
+}
+.lewis-electron-dot {
+  fill: #32294c;
+  stroke: #fff;
+  stroke-width: 1;
+}
+.lewis-accounting-note {
+  margin: .55rem 0 0;
+  color: hsl(var(--muted-foreground, 250 12% 42%));
+  font-size: .76rem;
+  text-align: center;
+}
+.lewis-unavailable {
+  padding: 1rem;
+  border: 1px solid #e9c98b;
+  border-radius: 12px;
+  background: #fff9eb;
+  color: #65480e;
+}
+@media (max-width: 520px) {
+  .lewis-electron-summary { gap: .35rem .7rem; font-size: .72rem; }
+  .lewis-canvas { max-height: 42vh; }
+  .lewis-bond-line { stroke-width: 5; }
+  .lewis-atom-symbol { font-size: 23px; }
+}

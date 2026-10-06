@@ -1,0 +1,289 @@
+.shell-simulation {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+  color: hsl(var(--foreground));
+}
+
+.shell-heading {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.shell-heading h3 {
+  margin: 2px 0 0;
+  font-size: 19px;
+  line-height: 1.25;
+}
+
+.shell-model-badge {
+  max-width: 48%;
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.shell-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.shell-canvas-wrap {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  background: linear-gradient(180deg, hsl(var(--card)), hsl(var(--secondary) / .35));
+}
+
+.shell-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-family: Inter, Arial, sans-serif;
+}
+
+.shell-atom[data-category='alkali metal'] { --shell-atom-color: var(--element-alkali); }
+.shell-atom[data-category='alkaline earth metal'] { --shell-atom-color: var(--element-alkaline); }
+.shell-atom[data-category='transition metal'],
+.shell-atom[data-category='post-transition metal'],
+.shell-atom[data-category='lanthanide'],
+.shell-atom[data-category='actinide'] { --shell-atom-color: var(--element-transition); }
+.shell-atom[data-category='metalloid'],
+.shell-atom[data-category='reactive nonmetal'] { --shell-atom-color: var(--element-nonmetal); }
+.shell-atom[data-category='halogen'] { --shell-atom-color: var(--element-halogen); }
+.shell-atom[data-category='noble gas'] { --shell-atom-color: var(--element-noble); }
+.shell-atom { --shell-atom-color: var(--primary); }
+
+.shell-ring {
+  fill: none;
+  stroke: hsl(var(--shell-atom-color) / .26);
+  stroke-width: 1.4;
+}
+
+.shell-ring.valence-ring {
+  stroke: hsl(var(--shell-atom-color) / .72);
+  stroke-width: 2;
+}
+
+.shell-nucleus {
+  fill: hsl(var(--shell-atom-color));
+  stroke: hsl(0 0% 100% / .95);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 2px 5px hsl(var(--shell-atom-color) / .3));
+}
+
+.shell-symbol {
+  fill: hsl(0 0% 100%);
+  font-size: 26px;
+  font-weight: 750;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: hsl(var(--shell-atom-color) / .25);
+  stroke-width: .5px;
+  pointer-events: none;
+}
+
+.shell-name {
+  fill: hsl(var(--foreground));
+  font-size: 20px;
+  font-weight: 600;
+  text-anchor: middle;
+}
+
+.shell-electron {
+  fill: hsl(194 82% 38%);
+  stroke: hsl(0 0% 100%);
+  stroke-width: 1;
+}
+
+.shell-electron.valence-electron {
+  fill: hsl(38 94% 48%);
+  stroke: hsl(0 0% 100%);
+  stroke-width: 1.2;
+}
+
+.shell-electron.highlighted,
+.shell-flying-electron {
+  fill: hsl(12 82% 52%);
+  stroke: hsl(0 0% 100%);
+  stroke-width: 1.5;
+}
+
+.shell-atom.is-active .shell-nucleus {
+  stroke: hsl(38 94% 48%);
+  stroke-width: 4;
+}
+
+.shell-covalent-link line {
+  stroke: hsl(var(--primary) / .78);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.shell-ionic-link line {
+  stroke: hsl(216 70% 47% / .78);
+  stroke-width: 2.5;
+  stroke-dasharray: 6 5;
+  stroke-linecap: round;
+}
+
+.shell-shared-cloud ellipse {
+  fill: hsl(var(--accent) / .18);
+  stroke: hsl(var(--primary) / .25);
+  stroke-width: 1;
+}
+
+.shell-electron.shared-electron {
+  fill: hsl(273 70% 48%);
+  stroke: hsl(0 0% 100%);
+  stroke-width: 1.2;
+}
+
+.shell-bond-order,
+.shell-attraction {
+  fill: hsl(var(--secondary-foreground));
+  font-size: 20px;
+  font-weight: 650;
+  text-anchor: middle;
+}
+
+.shell-charge circle { stroke: hsl(0 0% 100%); stroke-width: 2; }
+.shell-charge.positive circle { fill: hsl(215 72% 48%); }
+.shell-charge.negative circle { fill: hsl(350 68% 52%); }
+.shell-charge text {
+  fill: hsl(0 0% 100%);
+  font-size: 20px;
+  font-weight: 750;
+  text-anchor: middle;
+}
+
+.shell-transfer-trail path {
+  fill: none;
+  stroke: hsl(12 82% 52% / .85);
+  stroke-width: 3;
+  stroke-dasharray: 6 4;
+  stroke-linecap: round;
+}
+
+.shell-polar-labels text {
+  fill: hsl(var(--secondary-foreground));
+  font-size: 20px;
+  font-weight: 750;
+  paint-order: stroke;
+  stroke: hsl(var(--card));
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.shell-step-copy {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  border-left: 3px solid hsl(var(--primary));
+  border-radius: 0 8px 8px 0;
+  padding: 8px 10px;
+  background: hsl(var(--secondary) / .48);
+}
+
+.shell-step-heading {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 10px;
+  row-gap: 4px;
+}
+
+.shell-step-heading span {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.shell-step-heading strong {
+  min-width: 0;
+  color: hsl(var(--foreground));
+  font-size: 14px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.shell-step-copy p {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.shell-progress { width: 100%; accent-color: hsl(var(--primary)); }
+
+.shell-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.shell-controls button {
+  min-height: 34px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 7px;
+  padding: 6px 10px;
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  cursor: pointer;
+}
+
+.shell-controls button:hover { background: hsl(var(--secondary)); }
+.shell-controls .shell-play { border-color: hsl(var(--primary)); background: hsl(var(--primary)); color: white; }
+
+.shell-model-note {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 520px) {
+  .overlay[aria-label='Bond explorer'] .modal { padding: 24px 16px; }
+  .overlay[aria-label='Bond explorer'] .tabs { flex-wrap: wrap; overflow: visible; }
+  .overlay[aria-label='Bond explorer'] .tabs button { padding: 8px; }
+  .shell-heading { order: 0; }
+  .shell-summary { order: 1; }
+  .shell-controls { order: 2; }
+  .shell-step-copy { order: 3; }
+  .shell-progress { order: 4; }
+  .shell-canvas-wrap { order: 5; }
+  .shell-atom-key { order: 6; }
+  .shell-model-note { order: 7; }
+  .shell-step-heading { grid-template-columns: minmax(0, 1fr); }
+  .shell-step-heading strong { grid-row: 2; }
+  .shell-summary { flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell-controls button { scroll-behavior: auto; }
+}
+
+.shell-charge.positive rect { fill: hsl(215 72% 48%); }
+.shell-charge.negative rect { fill: hsl(350 68% 52%); }
+.shell-atom-key { display: flex; flex-wrap: wrap; gap: 5px 12px; font-size: 13px; color: hsl(var(--muted-foreground)); }
+.shell-atom-key b { color: hsl(var(--foreground)); }
+.shell-layer-labels { pointer-events: none; }
+.shell-bond-order { paint-order: stroke; stroke: hsl(var(--card)); stroke-width: 3px; stroke-linejoin: round; }

@@ -2,17 +2,17 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabase';
 import ChemLabSimulator from './ChemLabSimulator';
+import { StudentActivitiesPage } from './StudentActivitiesPage';
 
 type StudentClass = { id: string; name: string; join_code: string };
 type Section = 'home' | 'activity' | 'classes' | 'profile';
 
-export function StudentWorkspace({ section, navigate, logout }: { section: Section; navigate: (path: string) => void; logout: () => void }) {
+export function StudentWorkspace({ section, navigate, logout, assignmentId }: { section: Section; navigate: (path: string) => void; logout: () => void; assignmentId?: string }) {
   const { user, profile, refreshProfile } = useAuth();
   const [classes, setClasses] = useState<StudentClass[]>([]);
   const [classesLoading, setClassesLoading] = useState(false);
   const [classesError, setClassesError] = useState(false);
   const [joinCode, setJoinCode] = useState('');
-  const [activityCode, setActivityCode] = useState('');
   const [fullName, setFullName] = useState(profile?.full_name ?? '');
   const [program, setProgram] = useState(profile?.program ?? '');
   const [yearLevel, setYearLevel] = useState(profile?.year_level == null ? '' : String(profile.year_level));
@@ -73,11 +73,11 @@ export function StudentWorkspace({ section, navigate, logout }: { section: Secti
     </header>
     {section === 'home' && <>
       <section className="intro"><div><span className="eyebrow">STUDENT WORKSPACE</span><h1>Welcome{profile?.full_name ? ', ' + profile.full_name : ' to CHEMLAB'}.</h1><p>Explore chemical bonding with the interactive laboratory, open teacher activities, and access your classrooms.</p></div></section>
-      <section className="student-shortcuts"><a className="card" href="/student/activity" onClick={event => { event.preventDefault(); navigate('/student/activity'); }}><strong>Teacher activities</strong><span>Open a shared activity link</span></a><a className="card" href="/student/classes" onClick={event => { event.preventDefault(); navigate('/student/classes'); }}><strong>Your classrooms</strong><span>View or join a class</span></a><a className="card" href="/student/profile" onClick={event => { event.preventDefault(); navigate('/student/profile'); }}><strong>Your profile</strong><span>Update your learning information</span></a></section>
+      <section className="student-shortcuts"><a className="card" href="/student/activity" onClick={event => { event.preventDefault(); navigate('/student/activity'); }}><strong>Teacher activities</strong><span>View activities assigned to your classrooms</span></a><a className="card" href="/student/classes" onClick={event => { event.preventDefault(); navigate('/student/classes'); }}><strong>Your classrooms</strong><span>View or join a class</span></a><a className="card" href="/student/profile" onClick={event => { event.preventDefault(); navigate('/student/profile'); }}><strong>Your profile</strong><span>Update your learning information</span></a></section>
       <section className="intro"><div><span className="eyebrow">DISCOVER CHEMICAL BONDING</span><h1>See atoms <em>connect.</em></h1><p>Build accurate reactant groups, observe electron transfer or sharing, and read the chemistry behind every supported product.</p></div></section>
       <ChemLabSimulator />
     </>}
-    {section === 'activity' && <main className="simple-page card"><span className="eyebrow">STUDENT ACTIVITIES</span><h1>Open a teacher activity</h1><p>Use the activity link or share code provided by your teacher.</p><form className="student-code-form" onSubmit={event => { event.preventDefault(); const code = activityCode.trim(); if (code) navigate('/activity/' + encodeURIComponent(code)); }}><label><span>Activity share code</span><input value={activityCode} onChange={event => setActivityCode(event.target.value)} required /></label><button className="primary">Open activity</button></form><p className="muted">Your teacher may also share a direct activity link.</p></main>}
+    {section === 'activity' && <StudentActivitiesPage assignmentId={assignmentId} navigate={navigate} />}
     {section === 'classes' && <main className="simple-page card"><span className="eyebrow">STUDENT CLASSROOMS</span><h1>Your classes</h1><p>Join a classroom using the invitation code from your teacher.</p><form className="student-code-form" onSubmit={event => { event.preventDefault(); const code = joinCode.trim(); if (code) navigate('/join/' + encodeURIComponent(code)); }}><label><span>Classroom join code</span><input value={joinCode} onChange={event => setJoinCode(event.target.value)} required /></label><button className="primary">Join classroom</button></form>{classesLoading ? <p role="status">Loading your classes…</p> : classesError ? <p className="form-message error" role="alert">Your classrooms could not be loaded. Please retry.</p> : classes.length === 0 ? <p className="muted">You have not joined a classroom yet.</p> : <div className="classroom-list">{classes.map(room => <article className="classroom-row" key={room.id}><div><h3>{room.name}</h3><p>Join code: <strong>{room.join_code}</strong></p></div></article>)}</div>}</main>}
     {section === 'profile' && <main className="simple-page card"><span className="eyebrow">LEARNING PROFILE</span><h1>Your profile</h1><p>Role: Student</p><form className="auth-form" onSubmit={saveProfile}><label><span>Full name</span><input value={fullName} onChange={event => setFullName(event.target.value)} required /></label><label><span>Program</span><input value={program} onChange={event => setProgram(event.target.value)} /></label><div className="builder-two-col"><label><span>Year level</span><input value={yearLevel} onChange={event => setYearLevel(event.target.value)} /></label><label><span>Section</span><input value={classSection} onChange={event => setClassSection(event.target.value)} /></label></div><label><span>School name</span><input value={schoolName} onChange={event => setSchoolName(event.target.value)} /></label><button className="primary">Save profile</button>{profileStatus && <p className="form-message" role="status">{profileStatus}</p>}</form></main>}
   </>;

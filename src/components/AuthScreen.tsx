@@ -10,8 +10,7 @@ function destinationFor(profile: AuthProfile | null, returnTo?: string) {
     const joinCode = returnTo?.match(/^\/join\/([A-Za-z0-9_-]+)/)?.[1]
       ?? returnTo?.match(/^\/onboarding\?joinCode=([A-Za-z0-9_-]+)$/)?.[1];
     if (joinCode) return `/onboarding?joinCode=${encodeURIComponent(joinCode)}`;
-    const activityPath = returnTo?.match(/^\/(?:student\/)?activity\/[A-Za-z0-9_-]+$/)?.[0];
-    return `/onboarding${activityPath ? `?continueTo=${encodeURIComponent(activityPath)}` : ''}`;
+    return '/onboarding';
   }
   const requested = sanitizeReturnTo(returnTo || '/');
   if (profile.role === 'teacher') return requested.startsWith('/teacher') || requested.startsWith('/join/') ? requested : '/teacher';

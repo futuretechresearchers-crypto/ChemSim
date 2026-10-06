@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { deleteQuizActivity, listTeacherActivities, publishQuizActivity, saveQuizActivity, type QuizActivity, type QuizQuestion, type QuestionType } from '../lib/quizService';
+import { assignActivity } from '../lib/quizService';
+import { listTeacherClassrooms } from '../lib/classrooms';
+import type { TeacherClassroom } from '../types/teacher';
 
 const emptyQuestion = (): QuizQuestion => ({
   question_type: 'multiple_choice',
   question_text: '',
-  choices: ['Option A', 'Option B', 'Option C', 'Option D'],
+  options: ['Option A', 'Option B', 'Option C', 'Option D'],
   correct_answer: 'Option A',
   explanation: '',
   hint: '',
@@ -17,9 +20,13 @@ const emptyQuestion = (): QuizQuestion => ({
 const emptyActivity = (): QuizActivity => ({
   title: '',
   description: '',
+  instructions: '',
   category: 'General Chemistry',
   difficulty: 'medium',
   time_limit: 15,
+  time_limit_seconds: 900,
+  is_published: false,
+  total_questions: 1,
   published: false,
   activity_type: 'quiz',
   workspace_enabled: false,
@@ -33,6 +40,10 @@ export function TeacherQuizBuilder() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [assigning, setAssigning] = useState<QuizActivity | null>(null);
+  const [classrooms, setClassrooms] = useState<TeacherClassroom[]>([]);
+  const [classroomId, setClassroomId] = useState('');
+  const [dueAt, setDueAt] = useState('');
   const loadActivities = async () => {
     try {
       const next = await listTeacherActivities();
@@ -153,6 +164,20 @@ export function TeacherQuizBuilder() {
     }
   };
 
+  const openAssignment = async (activity: QuizActivity) => {
+    setError(null); setStatus(null);
+    try { setClassrooms(await listTeacherClassrooms()); setClassroomId(''); setDueAt(''); setAssigning(activity); }
+    catch (caught) { setError(caught instanceof Error ? caught.message : 'Classrooms could not be loaded.'); }
+  };
+  const submitAssignment = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!assigning || !classroomId) return;
+    try {
+      await assignActivity({ classroomId, quizId: assigning.id ?? '', dueAt: dueAt ? new Date(dueAt).toISOString() : undefined, isPublished: true });
+      setAssigning(null); setStatus('Activity assigned to classroom.');
+    } catch (caught) { setError(caught instanceof Error ? caught.message : 'Activity could not be assigned.'); }
+  };
+
   const currentShareLink = editor?.share_code ? `${window.location.origin}/activity/${editor.share_code}` : '';
 
   if (editor) {
@@ -247,8 +272,8 @@ export function TeacherQuizBuilder() {
                     <label>
                       <span>Choices</span>
                       <textarea
-                        value={(question.choices ?? []).join('\n')}
-                        onChange={(event) => updateQuestionField(index, 'choices', event.target.value.split('\n').map((choice) => choice.trim()).filter(Boolean))}
+                        value={(question.options ?? []).join('\n')}
+                        onChange={(event) => updateQuestionField(index, 'options', event.target.value.split('\n').map((option) => option.trim()).filter(Boolean))}
                         rows={4}
                       />
                     </label>
@@ -347,6 +372,7 @@ export function TeacherQuizBuilder() {
               <div className="activity-list-actions">
                 <button type="button" className="secondary" onClick={() => setEditor(activity)}>Edit</button>
                 <button type="button" className="secondary" onClick={() => deleteActivity(activity.id ?? '')}>Delete</button>
+                <button type="button" className="secondary" onClick={() => void openAssignment(activity)}>Assign</button>
                 <button type="button" className="secondary" onClick={() => copyLink(activity.share_code ?? '')}>Copy link</button>
                 <button type="button" className="primary" onClick={() => void publishExisting(activity)}>Publish</button>
               </div>
@@ -357,6 +383,7 @@ export function TeacherQuizBuilder() {
 
       {error && <div className="form-message error">{error}</div>}
       {status && <div className="form-message success">{status}</div>}
+      {assigning && <div className="modal-backdrop" role="presentation"><form className="builder-card assignment-dialog" role="dialog" aria-modal="true" aria-labelledby="assign-title" onSubmit={submitAssignment}><h2 id="assign-title">Assign {assigning.title}</h2><label><span>Classroom</span><select required value={classroomId} onChange={event => setClassroomId(event.target.value)}><option value="">Choose your classroom</option>{classrooms.map(room => <option key={room.id} value={room.id}>{room.name}{room.program ? ` — ${room.program}` : ''}{room.section ? ` ${room.section}` : ''}</option>)}</select></label><label><span>Due date (optional)</span><input type="datetime-local" value={dueAt} onChange={event => setDueAt(event.target.value)}/></label><div className="builder-actions"><button type="button" className="secondary" onClick={() => setAssigning(null)}>Cancel</button><button className="primary">Assign Activity</button></div></form></div>}
     </main>
   );
 }

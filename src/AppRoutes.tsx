@@ -3,9 +3,8 @@ import type { ReactNode } from 'react';
 import ChemSim from './components/ChemLabSimulator';
 import TeacherDashboard from './components/TeacherDashboard';
 import { AuthScreen } from './components/AuthScreen';
-import { StudentActivityPage } from './components/StudentActivityPage';
-import { TeacherQuizBuilder } from './components/TeacherQuizBuilder';
-import { TeacherClassrooms } from './components/TeacherClassrooms';
+import { TeacherClassroomManager } from './components/TeacherClassroomManager';
+import { TeacherActivityBuilder } from './components/TeacherActivityBuilder';
 import { StudentOnboarding } from './components/StudentOnboarding';
 import { JoinClassroomPage } from './components/JoinClassroomPage';
 import { StudentWorkspace } from './components/StudentWorkspace';
@@ -43,7 +42,8 @@ export default function AppRoutes() {
       <a className="brand" href="/teacher" onClick={(event) => { event.preventDefault(); navigate('/teacher'); }}><i>⚛</i><span>CHEM<span>LAB</span><small>teacher workspace</small></span></a>
       <nav>
         <a href="/teacher" className={path === '/teacher' ? 'active' : ''} onClick={(event) => { event.preventDefault(); navigate('/teacher'); }}>Teacher Dashboard</a>
-        <a href="/teacher/quiz-builder" className={path === '/teacher/quiz-builder' ? 'active' : ''} onClick={(event) => { event.preventDefault(); navigate('/teacher/quiz-builder'); }}>Quiz Builder</a>
+        <a href="/teacher/classrooms" className={path.startsWith('/teacher/classrooms') ? 'active' : ''} onClick={(event) => { event.preventDefault(); navigate('/teacher/classrooms'); }}>Classrooms</a>
+        <a href="/teacher/activities" className={path.startsWith('/teacher/activities') || path === '/teacher/quiz-builder' ? 'active' : ''} onClick={(event) => { event.preventDefault(); navigate('/teacher/activities'); }}>Activities</a>
         {Object.entries(teacherModules).map(([target, item]) => <a key={target} href={target} className={path === target ? 'active' : ''} onClick={(event) => { event.preventDefault(); navigate(target); }}>{item.title}</a>)}
       </nav>
       <button className="secondary" onClick={() => void logout()}>Log out</button>
@@ -60,27 +60,48 @@ export default function AppRoutes() {
   useEffect(() => {
     if (loading) return;
     const returnTo = window.location.pathname + window.location.search;
-    if ((path.startsWith('/teacher') || path.startsWith('/student') || path === '/onboarding') && !user) {
+    const isTeacherPath = path.startsWith('/teacher');
+    const isStudentPath = path.startsWith('/student');
+    const isProtectedPath = isTeacherPath || isStudentPath || path === '/onboarding' || path === '/' || path === '/lab';
+    if (isProtectedPath && !user) {
       navigate(`/login?returnTo=${encodeURIComponent(returnTo)}`, true);
       return;
     }
-    if (user && (path.startsWith('/teacher') || path.startsWith('/student') || path === '/onboarding')) {
+    if (user && (isProtectedPath || path.startsWith('/login'))) {
       if (profileError) return;
       if (!profile || !profile.onboarding_completed) {
         if (path !== '/onboarding') {
-          const activityPath = path.match(/^\/student\/activity\/[A-Za-z0-9_-]+$/)?.[0];
+          const activityPath = path.match(/^\/student\/activities\/[A-Za-z0-9_-]+$/)?.[0];
           navigate('/onboarding' + (activityPath ? '?continueTo=' + encodeURIComponent(activityPath) : ''), true);
         }
         return;
       }
-      if (path === '/onboarding') navigate(profile.role === 'teacher' ? '/teacher' : '/student', true);
-      else if (path.startsWith('/student') && role === 'teacher') navigate('/teacher', true);
+      if (path === '/onboarding' || path === '/login' || path === '/') navigate(profile.role === 'teacher' ? '/teacher' : '/student', true);
+      else if (isTeacherPath && role !== 'teacher') navigate('/student', true);
+      else if (isStudentPath && role !== 'student') navigate('/teacher', true);
+      else if (path === '/lab' && role === 'teacher') navigate('/teacher', true);
     }
   }, [path, user, profile, role, loading, profileError]);
 
   if (path.startsWith('/login')) {
+    if (loading) return <LoadingScreen />;
+    if (user && profileError) return <ProfileProblem message={profileError} retry={() => void refreshProfile()} logout={() => void logout()} />;
+    if (user && profile?.onboarding_completed) return <LoadingScreen />;
+    if (user) return <LoadingScreen />;
     const params = new URLSearchParams(window.location.search);
     return <AuthScreen returnTo={sanitizeReturnTo(params.get('returnTo'))} initialMode={params.get('mode') === 'register' ? 'register' : 'login'} />;
+  }
+  if (path === '/') {
+    if (loading) return <LoadingScreen />;
+    if (!user) return <AuthScreen />;
+    if (profileError) return <ProfileProblem message={profileError} retry={() => void refreshProfile()} logout={() => void logout()} />;
+    return <LoadingScreen />;
+  }
+  if (path === '/lab') {
+    if (loading || !user) return <LoadingScreen />;
+    if (profileError) return <ProfileProblem message={profileError} retry={() => void refreshProfile()} logout={() => void logout()} />;
+    if (profile?.role === 'student' && profile.onboarding_completed) return <StudentWorkspace section="home" navigate={navigate} logout={() => void logout()} />;
+    return <LoadingScreen />;
   }
   if (path === '/onboarding') {
     if (loading) return <LoadingScreen />;
@@ -90,11 +111,6 @@ export default function AppRoutes() {
     return <StudentOnboarding />;
   }
   if (path.startsWith('/join/')) return <JoinClassroomPage joinCode={path.slice('/join/'.length).split('/')[0] ?? ''} />;
-  if (path.startsWith('/activity/')) {
-    const shareCode = path.split('/activity/')[1]?.split('/')[0] ?? '';
-    return <StudentActivityPage shareCode={shareCode} />;
-  }
-
   if (path.startsWith('/teacher') || path.startsWith('/student')) {
     if (loading) return <LoadingScreen />;
     if (!user) return <LoadingScreen />;
@@ -103,11 +119,12 @@ export default function AppRoutes() {
     }
     if (!profile) return <StudentOnboarding />;
     if (!profile.onboarding_completed) return <StudentOnboarding />;
-    if (path.startsWith('/teacher') && role !== 'teacher') return <main className="auth-page"><div className="auth-card" role="alert"><span className="eyebrow">TEACHER ACCESS</span><h1>Teacher account required</h1><p>This account is not authorized to access the teacher workspace.</p><a className="primary" href="/student">Continue to CHEMLAB</a></div></main>;
+    if (path.startsWith('/teacher') && role !== 'teacher') return <LoadingScreen />;
     if (path.startsWith('/student') && role !== 'student') return <LoadingScreen />;
-    if (path.startsWith('/student/activity/')) return <StudentActivityPage shareCode={path.slice('/student/activity/'.length).split('/')[0] ?? ''} />;
-    if (path === '/teacher') return teacherLayout(<><TeacherClassrooms /><TeacherDashboard /></>);
-    if (path === '/teacher/quiz-builder') return teacherLayout(<TeacherQuizBuilder />);
+    if (path.startsWith('/student/activities/')) return <StudentWorkspace section="activity" assignmentId={path.slice('/student/activities/'.length).split('/')[0] ?? ''} navigate={navigate} logout={() => void logout()} />;
+    if (path === '/teacher') return teacherLayout(<TeacherDashboard />);
+    if (path === '/teacher/classrooms' || path.startsWith('/teacher/classrooms/')) return teacherLayout(<TeacherClassroomManager path={path} navigate={navigate} />);
+    if (path === '/teacher/activities' || path.startsWith('/teacher/activities/') || path === '/teacher/quiz-builder') return teacherLayout(<TeacherActivityBuilder path={path} navigate={navigate} />);
     const module = teacherModules[path];
     if (module && role === 'teacher') return teacherLayout(<main className="simple-page card"><span className="eyebrow">TEACHER MODULE</span><h1>{module.title}</h1><p>{module.description}</p><a className="primary" href="/teacher" onClick={(event) => { event.preventDefault(); navigate('/teacher'); }}>Back to Teacher Dashboard</a></main>);
     if (path.startsWith('/teacher/')) return teacherLayout(<main className="simple-page card"><h1>Teacher page not found</h1><a href="/teacher" onClick={(event) => { event.preventDefault(); navigate('/teacher'); }}>Return to Teacher Dashboard</a></main>);
@@ -117,6 +134,8 @@ export default function AppRoutes() {
   }
 
   const page = path === '/quizzes' ? 'quizzes' : 'lab';
+  if (path !== '/quizzes' && path !== '/lab') return <main className="simple-page card"><h1>Page not found</h1><a className="primary" href="/login">Go to CHEMLAB login</a></main>;
+  if (path === '/lab') return <LoadingScreen />;
   return <>
     <header>
       <a className="brand" href="/" onClick={(event) => { event.preventDefault(); navigate('/'); }}><i>⚛</i><span>CHEM<span>LAB</span><small>interactive chemistry laboratory</small></span></a>

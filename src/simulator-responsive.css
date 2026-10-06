@@ -1,0 +1,34 @@
+/* Local scroll surfaces retain readable periodic tiles without widening the page. */
+.periodic-table-wrap,
+.periodic-scroll {
+  min-width: 0;
+  max-width: 100%;
+}
+.periodic-scroll {
+  margin-right: 0;
+  overflow-x: auto;
+}
+.f-block {
+  min-width: 0;
+  width: 100%;
+  overflow-x: auto;
+}
+.f-block > div {
+  min-width: 770px;
+}
+/* Inline periodic coordinates apply only to the main table, not these rows. */
+.f-block .periodic-element {
+  grid-column: auto !important;
+  grid-row: auto !important;
+}
+.sim-shell > .card {
+  overflow-wrap: anywhere;
+}
+/* Two fixed column minima plus gutters no longer fit below this breakpoint. */
+@media (min-width: 801px) and (max-width: 1000px) {
+  .sim-shell { grid-template-columns: minmax(0, 1fr); }
+  .analysis { display: block; }
+}
+@media (max-width: 720px) {
+  header nav { min-width: 0; max-width: 100%; }
+}

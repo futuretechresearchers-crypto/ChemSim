@@ -8,4 +8,7 @@ import './chemlab-system.css';
 import './chemsim-controls.css';
 import './modal.css';
 import './compound-visual.css';
+import './shell-simulation.css';
+import './lewis-structure.css';
+import './simulator-responsive.css';
 createRoot(document.getElementById('root')!).render(<StrictMode><AuthProvider><AppRoutes /></AuthProvider></StrictMode>);

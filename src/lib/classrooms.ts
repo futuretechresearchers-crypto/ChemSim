@@ -1,29 +1,70 @@
 import { supabase } from './supabase';
+import type { ClassroomMemberProfile, TeacherClassroom } from '../types/teacher';
 
-export type Classroom = { id: string; name: string; join_code: string; teacher_id?: string };
+export type Classroom = Pick<TeacherClassroom, 'id' | 'name' | 'join_code'> & Partial<TeacherClassroom>;
+export type ClassroomDraft = Pick<TeacherClassroom, 'name'> & Partial<Pick<TeacherClassroom, 'description' | 'program' | 'year_level' | 'section'>>;
 
-function makeJoinCode() {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const values = crypto.getRandomValues(new Uint8Array(8));
-  return Array.from(values, value => alphabet[value % alphabet.length]).join('');
+async function currentTeacherId() {
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) throw new Error('Sign in with your teacher account to manage classrooms.');
+  return data.user.id;
 }
 
-export async function listTeacherClassrooms(teacherId: string): Promise<Classroom[]> {
-  const { data, error } = await supabase.from('classrooms').select('id, teacher_id, name, join_code').eq('teacher_id', teacherId).order('created_at', { ascending: false });
+const classroomColumns = 'id, teacher_id, name, join_code, description, program, year_level, section, is_active, created_at, updated_at';
+
+export async function listTeacherClassrooms(teacherId?: string): Promise<TeacherClassroom[]> {
+  const ownerId = teacherId ?? await currentTeacherId();
+  const { data, error } = await supabase.from('classrooms').select(classroomColumns)
+    .eq('teacher_id', ownerId).order('created_at', { ascending: false });
   if (error) throw error;
-  return (data ?? []) as Classroom[];
+  return (data ?? []) as TeacherClassroom[];
 }
 
-export async function createClassroom(teacherId: string, name: string): Promise<Classroom> {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const { data, error } = await supabase.from('classrooms')
-      .insert({ teacher_id: teacherId, name: name.trim(), join_code: makeJoinCode() })
-      .select('id, teacher_id, name, join_code')
-      .single();
-    if (!error) return data as Classroom;
-    if (error.code !== '23505') throw error;
-  }
-  throw new Error('Could not generate a unique classroom invitation. Please try again.');
+export async function createClassroom(draft: ClassroomDraft): Promise<TeacherClassroom> {
+  const teacherId = await currentTeacherId();
+  const { data, error } = await supabase.from('classrooms').insert({
+    teacher_id: teacherId, name: draft.name.trim(), description: draft.description?.trim() || null,
+    program: draft.program?.trim() || null, year_level: draft.year_level?.trim() || null,
+    section: draft.section?.trim() || null,
+  }).select(classroomColumns).single();
+  if (error) throw error;
+  return data as TeacherClassroom;
+}
+
+export async function updateClassroom(id: string, draft: ClassroomDraft): Promise<TeacherClassroom> {
+  const teacherId = await currentTeacherId();
+  const { data, error } = await supabase.from('classrooms').update({
+    name: draft.name.trim(), description: draft.description?.trim() || null,
+    program: draft.program?.trim() || null, year_level: draft.year_level?.trim() || null,
+    section: draft.section?.trim() || null,
+  }).eq('id', id).eq('teacher_id', teacherId).select(classroomColumns).single();
+  if (error) throw error;
+  return data as TeacherClassroom;
+}
+
+export async function setClassroomActive(id: string, isActive: boolean): Promise<void> {
+  const teacherId = await currentTeacherId();
+  const { error } = await supabase.from('classrooms').update({ is_active: isActive }).eq('id', id).eq('teacher_id', teacherId);
+  if (error) throw error;
+}
+
+export async function getTeacherClassroom(id: string): Promise<TeacherClassroom> {
+  const teacherId = await currentTeacherId();
+  const { data, error } = await supabase.from('classrooms').select(classroomColumns).eq('id', id).eq('teacher_id', teacherId).single();
+  if (error) throw error;
+  return data as TeacherClassroom;
+}
+
+export async function listClassroomMembers(classroomId: string): Promise<ClassroomMemberProfile[]> {
+  const teacherId = await currentTeacherId();
+  const { data: classroom, error: classroomError } = await supabase.from('classrooms').select('id').eq('id', classroomId).eq('teacher_id', teacherId).single();
+  if (classroomError) throw classroomError;
+  const { data, error } = await supabase.from('classroom_members').select('profile:profiles(id, full_name, program, year_level, section)').eq('classroom_id', classroom.id);
+  if (error) throw error;
+  return (data ?? []).flatMap((row: { profile: ClassroomMemberProfile | ClassroomMemberProfile[] | null }) => {
+    const profile = Array.isArray(row.profile) ? row.profile[0] : row.profile;
+    return profile ? [profile] : [];
+  });
 }
 
 export async function getClassroomByCode(joinCode: string): Promise<Classroom | null> {

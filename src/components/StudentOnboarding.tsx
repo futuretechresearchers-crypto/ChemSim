@@ -37,7 +37,7 @@ export function StudentOnboarding() {
       // Choosing teacher describes identity only. Only the trusted profile role
       // decides access to the teacher workspace.
       if (joinCode && identity === 'student' && saved.role === 'student') window.location.assign(`/join/${encodeURIComponent(joinCode)}`);
-      else if (continueTo?.startsWith('/activity/') && saved.role === 'student') window.location.assign(continueTo);
+      else if (/^\/student\/activities\/[A-Za-z0-9_-]+$/.test(continueTo ?? '') && saved.role === 'student') window.location.assign(continueTo!);
       else window.location.assign(saved.role === 'teacher' ? '/teacher' : '/student');
     } catch {
       setError('We could not save your profile. Check your connection or ask your CHEMLAB administrator to verify profile permissions.');

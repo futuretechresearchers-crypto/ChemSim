@@ -37,6 +37,9 @@ nav a:hover { background: #f0ebfc; color: #7251c8; }
 .status-pill { display: inline-flex; padding: 5px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; }
 .status-pill.published { background: #eafaf1; color: #1f7d43; }
 .status-pill.draft { background: #f2ebff; color: #5e4da7; }
+.status-pill.available, .status-pill.completed { background: #eafaf1; color: #1f7d43; }
+.status-pill.not_yet_available { background: #fff7e8; color: #855c0b; }
+.status-pill.past_due, .status-pill.unavailable { background: #fff1f4; color: #a52b48; }
 .activity-badges { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 .activity-badges span { border: 1px solid #ebddff; border-radius: 999px; padding: 5px 10px; background: #faf7ff; color: #5b3ca8; font-size: 0.8rem; }
 .activity-list-actions { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }

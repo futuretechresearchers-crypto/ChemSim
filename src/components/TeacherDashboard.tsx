@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { getTeacherDashboardData } from '../lib/teacherDashboard';
 import type { TeacherDashboardData, TeacherDashboardResult } from '../types/teacherDashboard';
+import { listClassroomMembers, listTeacherClassrooms } from '../lib/classrooms';
+import { listTeacherActivities } from '../lib/quizService';
 import './TeacherDashboard.css';
 
 type IconName = 'clipboard'|'users'|'award'|'trend'|'chart'|'flask'|'book'|'layers'|'settings';
@@ -47,6 +49,7 @@ export default function TeacherDashboard() {
   const [data, setData] = useState<TeacherDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [workspaceStats, setWorkspaceStats] = useState<{ classrooms: number; activities: number; published: number; students: number } | null>(null);
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try { setData(await getTeacherDashboardData()); }
@@ -54,17 +57,25 @@ export default function TeacherDashboard() {
     finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let active = true;
+    void Promise.all([listTeacherClassrooms(), listTeacherActivities()]).then(async ([classrooms, activities]) => {
+      const memberships = await Promise.all(classrooms.map(classroom => listClassroomMembers(classroom.id)));
+      if (active) setWorkspaceStats({ classrooms: classrooms.length, activities: activities.length, published: activities.filter(activity => activity.is_published).length, students: memberships.reduce((count, members) => count + members.length, 0) });
+    }).catch(() => { if (active) setWorkspaceStats(null); });
+    return () => { active = false; };
+  }, []);
 
   const stats = data?.stats;
   const avg = stats && Number.isFinite(stats.avgScore) ? `${Math.round(stats.avgScore)}%` : '—';
   return <main className="td-page">
     <div className="td-container">
-      <div className="td-heading"><h1>Teacher Dashboard</h1><p>Welcome back, {data?.teacherName || 'Teacher'} — manage your chemistry classroom.</p></div>
+      <div className="td-heading"><h1>Teacher Dashboard</h1><p>Welcome back, {data?.teacherName || 'Teacher'} — manage your chemistry classroom.</p><div className="builder-actions"><a className="primary" href="/teacher/classrooms/new">Create Classroom</a><a className="secondary" href="/teacher/activities/new">Create Activity</a></div></div>
       <section className="td-stats" aria-label="Dashboard statistics">
-        <StatCard icon="clipboard" label="Quizzes Created" value={loading || error ? '—' : stats?.quizzes ?? 0} color="violet"/>
-        <StatCard icon="users" label="Students Active" value={loading || error ? '—' : stats?.students ?? 0} color="blue"/>
-        <StatCard icon="award" label="Avg. Score" value={loading || error ? '—' : avg} color="green"/>
-        <StatCard icon="trend" label="Total Attempts" value={loading || error ? '—' : stats?.attempts ?? 0} color="amber"/>
+        <StatCard icon="users" label="Classrooms" value={workspaceStats?.classrooms ?? '—'} color="violet"/>
+        <StatCard icon="clipboard" label="Activities" value={workspaceStats?.activities ?? '—'} color="blue"/>
+        <StatCard icon="award" label="Published Activities" value={workspaceStats?.published ?? '—'} color="green"/>
+        <StatCard icon="users" label="Students across classrooms" value={workspaceStats?.students ?? '—'} color="amber"/>
       </section>
       <section className="td-section">
         <h2>Modules</h2>

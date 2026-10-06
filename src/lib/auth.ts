@@ -28,7 +28,7 @@ export function sanitizeReturnTo(value: string | null | undefined): string {
 
   const next = normalized.startsWith('/') ? normalized : `/${normalized}`;
   const [pathname, query = ''] = next.split('?', 2);
-  const safePatterns = [/^\/activity\/[A-Za-z0-9_-]+$/, /^\/join\/[A-Za-z0-9_-]+$/, /^\/teacher(?:\/.*)?$/, /^\/student(?:\/.*)?$/, /^\/onboarding(?:\/.*)?$/, /^\/login(?:\/.*)?$/, /^\/$/];
+  const safePatterns = [/^\/join\/[A-Za-z0-9_-]+$/, /^\/teacher(?:\/.*)?$/, /^\/student(?:\/.*)?$/, /^\/onboarding(?:\/.*)?$/, /^\/login(?:\/.*)?$/, /^\/$/];
   const safeQuery = !query || /^(?:joined=1|joinCode=[A-Za-z0-9_-]+)$/.test(query);
 
   return safeQuery && safePatterns.some((pattern) => pattern.test(pathname)) ? pathname + (query ? `?${query}` : '') : '/';
