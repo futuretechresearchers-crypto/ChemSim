@@ -8,3 +8,29 @@ coverage/
 qa/phase6_2/.auth/
 *.log
 .DS_Store
+
+# Local secrets; the reviewed placeholder example remains publishable.
+.env.*
+!.env.example
+.pgpass
+.pgpass.*
+pgpass.conf
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Database backups and local recovery exports.
+*.dump
+*.backup
+*.bak
+/backups/
+/backup/
+
+# QA is local-only: production evidence, auth state, snapshots and build output.
+# Publish separately curated QA documents only after an explicit disclosure review.
+/qa/
+
+# Python generated files.
+__pycache__/
+*.py[cod]

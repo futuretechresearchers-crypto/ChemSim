@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import ChemSim from './components/ChemLabSimulator';
 import TeacherDashboard from './components/TeacherDashboard';
-import { AuthScreen } from './components/AuthScreen';
+import { AuthScreen, destinationFor } from './components/AuthScreen';
 import { TeacherClassroomManager } from './components/TeacherClassroomManager';
 import { TeacherActivityBuilder } from './components/TeacherActivityBuilder';
 import { StudentOnboarding } from './components/StudentOnboarding';
@@ -58,6 +58,7 @@ export default function AppRoutes() {
   }, []);
 
   useEffect(() => {
+    if (path === '/recover') return;
     if (loading) return;
     const returnTo = window.location.pathname + window.location.search;
     const isTeacherPath = path.startsWith('/teacher');
@@ -69,6 +70,10 @@ export default function AppRoutes() {
     }
     if (user && (isProtectedPath || path.startsWith('/login'))) {
       if (profileError) return;
+      if (path === '/login') {
+        navigate(destinationFor(profile, sanitizeReturnTo(new URLSearchParams(window.location.search).get('returnTo'))), true);
+        return;
+      }
       if (!profile || !profile.onboarding_completed) {
         if (path !== '/onboarding') {
           const activityPath = path.match(/^\/student\/activities\/[A-Za-z0-9_-]+$/)?.[0];
@@ -83,6 +88,7 @@ export default function AppRoutes() {
     }
   }, [path, user, profile, role, loading, profileError]);
 
+  if (path === '/recover') return <AuthScreen initialMode="recovery" />;
   if (path.startsWith('/login')) {
     if (loading) return <LoadingScreen />;
     if (user && profileError) return <ProfileProblem message={profileError} retry={() => void refreshProfile()} logout={() => void logout()} />;

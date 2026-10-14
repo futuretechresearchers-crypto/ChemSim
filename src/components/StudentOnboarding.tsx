@@ -6,7 +6,7 @@ export function StudentOnboarding() {
   const { user, profile, refreshProfile } = useAuth();
   const savedProgram = profile?.program ?? 'BSCS';
   const standardPrograms = ['BSCS', 'BSIT', 'BSIS'];
-  const [identity, setIdentity] = useState<'student' | 'teacher'>(profile?.identity_type ?? (profile?.role === 'teacher' ? 'teacher' : 'student'));
+  const [identity, setIdentity] = useState<'student' | 'teacher'>(!profile?.onboarding_completed && user?.user_metadata?.identity_type === 'teacher' ? 'teacher' : profile?.identity_type ?? (profile?.role === 'teacher' ? 'teacher' : 'student'));
   const [fullName, setFullName] = useState(profile?.full_name ?? user?.user_metadata?.full_name ?? '');
   const [program, setProgram] = useState(standardPrograms.includes(savedProgram) ? savedProgram : 'Other');
   const [customProgram, setCustomProgram] = useState(standardPrograms.includes(savedProgram) ? '' : savedProgram);

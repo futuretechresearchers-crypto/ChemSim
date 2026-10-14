@@ -95,6 +95,7 @@ export async function saveOnboardingProfile(userId: string, input: OnboardingPro
     .eq('id', userId)
     .single();
   if (savedError) throw savedError;
+  if (saved.id !== userId) throw new Error('Your account profile does not match your session.');
   if (!saved.onboarding_completed) throw new Error('Your profile is not yet marked complete.');
   if (saved.role !== 'teacher' && saved.role !== 'student') throw new Error('Your profile role is invalid. Please contact your CHEMLAB administrator.');
   return {

@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import { signInWithPassword, signUpUser, sanitizeReturnTo } from '../lib/auth';
+import { useRef, useState } from 'react';
+import { signInWithPassword, sanitizeReturnTo } from '../lib/auth';
 import { getProfileForUser } from '../lib/AuthContext';
 import type { AuthProfile } from '../lib/auth';
+import { EmailOtpFlow } from './EmailOtpFlow';
+import { supabase } from '../lib/supabase';
 
-type AuthMode = 'login' | 'register';
+type AuthMode = 'login' | 'register' | 'recovery';
 
-function destinationFor(profile: AuthProfile | null, returnTo?: string) {
+export function destinationFor(profile: AuthProfile | null, returnTo?: string) {
   if (!profile || !profile.onboarding_completed) {
     const joinCode = returnTo?.match(/^\/join\/([A-Za-z0-9_-]+)/)?.[1]
       ?? returnTo?.match(/^\/onboarding\?joinCode=([A-Za-z0-9_-]+)$/)?.[1];
@@ -19,41 +21,30 @@ function destinationFor(profile: AuthProfile | null, returnTo?: string) {
 
 export function AuthScreen({ returnTo, initialMode = 'login' }: { returnTo?: string; initialMode?: AuthMode }) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
-  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const inFlight = useRef(false);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (inFlight.current) return;
+    inFlight.current = true;
     setLoading(true);
     setError(null);
-    setSuccess(null);
 
     try {
       let destination: string | null = null;
-      if (mode === 'register') {
-        if (password !== confirmPassword) throw new Error('Passwords do not match.');
-        const result = await signUpUser({ full_name: fullName, email, password });
-        if (result.error) {
-          throw result.error;
-        }
-        if (result.data.user && result.data.session) {
-          const profile = await getProfileForUser(result.data.user.id);
-          destination = destinationFor(profile, returnTo);
-        } else {
-          setSuccess('Supabase created the account but did not return a session. To enter CHEMLAB immediately, turn off Email confirmation in Supabase Authentication settings, then sign in.');
-        }
-      } else {
+      {
         const result = await signInWithPassword(email, password);
         if (result.error) {
           throw result.error;
         }
         if (!result.data.user) throw new Error('Supabase did not return an authenticated user.');
         const profile = await getProfileForUser(result.data.user.id);
+        const { data: current, error: currentError } = await supabase.auth.getUser();
+        if (currentError || current.user?.id !== result.data.user.id) throw new Error('Your account changed. Sign in again.');
         const requested = sanitizeReturnTo(returnTo || '/');
         destination = destinationFor(profile, requested);
       }
@@ -62,9 +53,11 @@ export function AuthScreen({ returnTo, initialMode = 'login' }: { returnTo?: str
     } catch (caughtError: any) {
       const message = caughtError?.message ?? 'Authentication failed. Please try again.';
       setError(/email not confirmed/i.test(message)
-        ? 'Supabase is still requiring email confirmation. CHEMLAB expects immediate sign-in, so ask your administrator to turn off Confirm Email in Supabase Authentication settings.'
+        ? 'Verify your email with your registration code before signing in.'
         : message);
     } finally {
+      inFlight.current = false;
+      setPassword('');
       setLoading(false);
     }
   };
@@ -74,22 +67,16 @@ export function AuthScreen({ returnTo, initialMode = 'login' }: { returnTo?: str
       <div className="auth-card">
         <div className="auth-header">
           <span className="eyebrow">CHEMLAB ACCESS</span>
-          <h1>{mode === 'login' ? 'Welcome back' : 'Create account'}</h1>
-          <p>{mode === 'login' ? 'Sign in to continue your chemistry activity.' : 'Create your account, then set up your CHEMLAB identity.'}</p>
+          <h1>{mode === 'login' ? 'Welcome back' : mode === 'recovery' ? 'Account recovery' : 'Create account'}</h1>
+          <p>{mode === 'login' ? 'Sign in to continue your chemistry activity.' : mode === 'recovery' ? 'Verify a six-digit email code, then choose a new password.' : 'Create your account, then set up your CHEMLAB identity.'}</p>
         </div>
 
-        <div className="auth-toggle">
-          <button className={mode === 'login' ? 'active' : ''} type="button" onClick={() => setMode('login')}>Log in</button>
-          <button className={mode === 'register' ? 'active' : ''} type="button" onClick={() => setMode('register')}>Register</button>
-        </div>
+        {mode === 'login' && <div className="auth-toggle">
+          <button className={mode === 'login' ? 'active' : ''} type="button" disabled={loading} onClick={() => setMode('login')}>Log in</button>
+          <button type="button" disabled={loading} onClick={() => setMode('register')}>Register</button>
+        </div>}
 
-        <form onSubmit={submit} className="auth-form">
-          {mode === 'register' && (
-            <label>
-              <span>Full name</span>
-              <input value={fullName} onChange={(event) => setFullName(event.target.value)} placeholder="Alex Student" autoComplete="name" required />
-            </label>
-          )}
+        {mode !== 'login' ? <EmailOtpFlow key={mode} recovery={mode === 'recovery'} returnTo={returnTo} cancel={() => mode === 'recovery' ? window.location.assign('/login') : setMode('login')} /> : <form onSubmit={submit} className="auth-form">
 
           <label>
             <span>Email</span>
@@ -101,15 +88,14 @@ export function AuthScreen({ returnTo, initialMode = 'login' }: { returnTo?: str
             <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={6} required />
           </label>
 
-          {mode === 'register' && <label><span>Confirm password</span><input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={6} required /></label>}
 
           {error && <div className="form-message error">{error}</div>}
-          {success && <div className="form-message success">{success}</div>}
 
           <button type="submit" className="primary" disabled={loading}>
             {loading ? 'Please wait…' : mode === 'login' ? 'Log in' : 'Create account'}
           </button>
-        </form>
+          <button type="button" className="secondary" disabled={loading} onClick={() => window.location.assign('/recover')}>Forgot password?</button>
+        </form>}
       </div>
     </main>
   );

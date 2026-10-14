@@ -1,0 +1,29 @@
+# Supabase
+.branches
+.temp
+
+# dotenvx
+.env.keys
+.env.local
+.env.*.local
+
+# Other local environment and credential files.
+.env
+.env.*
+.pgpass
+.pgpass.*
+pgpass.conf
+
+# Local CLI configuration, production snapshots and archived migration copies.
+/config.toml
+/live_schema
+/live_schema.sql
+/schemas/
+/obsolete_migrations/
+
+# Database backup/export directories and archives.
+/backups/
+/backup/
+*.dump
+*.backup
+*.bak
