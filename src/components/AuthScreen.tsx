@@ -4,6 +4,7 @@ import { getProfileForUser } from '../lib/AuthContext';
 import type { AuthProfile } from '../lib/auth';
 import { EmailOtpFlow } from './EmailOtpFlow';
 import { supabase } from '../lib/supabase';
+import { PasswordInput } from './PasswordInput';
 
 type AuthMode = 'login' | 'register' | 'recovery';
 
@@ -85,7 +86,7 @@ export function AuthScreen({ returnTo, initialMode = 'login' }: { returnTo?: str
 
           <label>
             <span>Password</span>
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={6} required />
+            <PasswordInput value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} minLength={6} required />
           </label>
 
 

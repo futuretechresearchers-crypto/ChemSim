@@ -3,6 +3,7 @@ import { createEmailOtpClient, requireVerifiedOtpUser, requestRecoveryCode } fro
 import { supabase } from '../lib/supabase';
 import { destinationFor } from './AuthScreen';
 import { getProfileForUser } from '../lib/AuthContext';
+import { PasswordInput } from './PasswordInput';
 
 export function EmailOtpFlow({ recovery = false, returnTo, cancel }: { recovery?: boolean; returnTo?: string; cancel: () => void }) {
   const [client] = useState(createEmailOtpClient);
@@ -59,7 +60,7 @@ export function EmailOtpFlow({ recovery = false, returnTo, cancel }: { recovery?
   const submit = async () => {
     if (step === 'request') return request();
     if (step === 'verify') {
-      if (recovery && !/^\d{6}$/.test(code.trim())) throw new Error('Enter the six-digit recovery code.');
+      if (!/^\d{6}$/.test(code.trim())) throw new Error('Enter the six-digit verification code.');
       // Current auth-js deprecates signup verification type in favor of email.
       const { data, error: failure } = await client.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: recovery ? 'recovery' : 'email' });
       setCode('');
@@ -76,6 +77,10 @@ export function EmailOtpFlow({ recovery = false, returnTo, cancel }: { recovery?
       const profile = await getProfileForUser(user.id);
       const { data: current } = await supabase.auth.getUser();
       if (current.user?.id !== user.id || (profile && profile.id !== user.id)) throw new Error('Your account changed. Sign in again.');
+      // AppRoutes may already have routed the confirmed workspace session while
+      // the profile/user reads were in flight. A stale handler must not reload
+      // onboarding and erase the form that the user has started completing.
+      if (!mounted.current) return;
       window.location.assign(destinationFor(profile, returnTo));
       return;
     }
@@ -112,10 +117,10 @@ export function EmailOtpFlow({ recovery = false, returnTo, cancel }: { recovery?
         <label><span>Email</span><input type="email" value={email} onChange={event => setEmail(event.target.value)} autoComplete="email" required /></label>
       </>}
       {(step === 'password' || (step === 'request' && !recovery)) && <>
-        <label><span>{recovery ? 'New password' : 'Password'}</span><input type="password" value={password} onChange={event => setPassword(event.target.value)} autoComplete="new-password" minLength={8} required /></label>
-        <label><span>Confirm password</span><input type="password" value={confirm} onChange={event => setConfirm(event.target.value)} autoComplete="new-password" minLength={8} required /></label>
+        <label><span>{recovery ? 'New password' : 'Password'}</span><PasswordInput value={password} onChange={event => setPassword(event.target.value)} autoComplete="new-password" minLength={8} required /></label>
+        <label><span>Confirm password</span><PasswordInput value={confirm} onChange={event => setConfirm(event.target.value)} autoComplete="new-password" minLength={8} required /></label>
       </>}
-      {step === 'verify' && <><p>Enter the {recovery ? 'six-digit ' : ''}code sent to {email}.</p><label><span>Verification code</span><input value={code} onChange={event => setCode(event.target.value)} inputMode="numeric" autoComplete="one-time-code" pattern={recovery ? '[0-9]{6}' : '[0-9]{6,10}'} minLength={6} maxLength={recovery ? 6 : 10} required /></label></>}
+      {step === 'verify' && <><p>Enter the six-digit code sent to {email}.</p><label><span>Verification code</span><input value={code} onChange={event => setCode(event.target.value)} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" minLength={6} maxLength={6} required /></label></>}
       {error && <p className="form-message error" role="alert">{error}</p>}
       {notice && <p className="form-message success" role="status">{notice}</p>}
       <button className="primary" disabled={busy}>{busy ? 'Please wait…' : step === 'request' ? 'Send code' : step === 'verify' ? 'Verify code' : 'Save new password'}</button>
