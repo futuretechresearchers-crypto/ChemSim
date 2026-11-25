@@ -22,13 +22,13 @@ function Icon({ name, className = '' }: { name: IconName; className?: string }) 
   return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>;
 }
 
-const modules: { title: string; description: string; path: string; color: string; icon: IconName }[] = [
+const modules: { title: string; description: string; path: string; color: string; icon: IconName; planned?: boolean }[] = [
   { title: 'Quiz Builder', description: 'Create and manage chemistry quizzes', path: '/teacher/quiz-builder', color: 'violet', icon: 'clipboard' },
-  { title: 'Student Analytics', description: 'Monitor student performance and scores', path: '/teacher/analytics', color: 'blue', icon: 'chart' },
-  { title: 'Reaction Manager', description: 'Add custom reactions and compounds', path: '/teacher/reactions', color: 'green', icon: 'flask' },
-  { title: 'Learning Materials', description: 'Manage educational content and lessons', path: '/teacher/materials', color: 'amber', icon: 'book' },
-  { title: 'Visualization Manager', description: 'Customize animations and bond visuals', path: '/teacher/visualizations', color: 'cyan', icon: 'layers' },
-  { title: 'Simulation Controls', description: 'Configure workspace settings', path: '/teacher/controls', color: 'rose', icon: 'settings' },
+  { title: 'Student Analytics', description: 'Monitor student performance and scores', path: '/teacher/analytics', color: 'blue', icon: 'chart', planned: true },
+  { title: 'Reaction Manager', description: 'Add custom reactions and compounds', path: '/teacher/reactions', color: 'green', icon: 'flask', planned: true },
+  { title: 'Learning Materials', description: 'Manage educational content and lessons', path: '/teacher/materials', color: 'amber', icon: 'book', planned: true },
+  { title: 'Visualization Manager', description: 'Customize animations and bond visuals', path: '/teacher/visualizations', color: 'cyan', icon: 'layers', planned: true },
+  { title: 'Simulation Controls', description: 'Configure workspace settings', path: '/teacher/controls', color: 'rose', icon: 'settings', planned: true },
 ];
 
 function StatCard({ label, value, color, icon }: { label: string; value: string | number; color: string; icon: IconName }) {
@@ -81,6 +81,7 @@ export default function TeacherDashboard() {
         <h2>Modules</h2>
         <div className="td-modules">{modules.map((mod, index) => <a key={mod.path} href={mod.path} className={`td-module td-${mod.color}`} style={{ animationDelay: `${index * 50}ms` }}>
           <Icon name={mod.icon} className="td-module-icon"/><h3>{mod.title}</h3><p>{mod.description}</p>
+          {mod.planned && <p>Planned — not yet available</p>}
         </a>)}</div>
       </section>
       <section className="td-section">

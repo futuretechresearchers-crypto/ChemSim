@@ -21,6 +21,7 @@ export async function listTeacherClassrooms(teacherId?: string): Promise<Teacher
 }
 
 export async function createClassroom(draft: ClassroomDraft): Promise<TeacherClassroom> {
+  if (!draft.name.trim()) throw new Error('Enter a classroom name.');
   const teacherId = await currentTeacherId();
   const { data, error } = await supabase.from('classrooms').insert({
     teacher_id: teacherId, name: draft.name.trim(), description: draft.description?.trim() || null,
@@ -32,6 +33,7 @@ export async function createClassroom(draft: ClassroomDraft): Promise<TeacherCla
 }
 
 export async function updateClassroom(id: string, draft: ClassroomDraft): Promise<TeacherClassroom> {
+  if (!draft.name.trim()) throw new Error('Enter a classroom name.');
   const teacherId = await currentTeacherId();
   const { data, error } = await supabase.from('classrooms').update({
     name: draft.name.trim(), description: draft.description?.trim() || null,
@@ -74,6 +76,7 @@ export async function getClassroomByCode(joinCode: string): Promise<Classroom | 
 }
 
 export async function joinClassroomByCode(joinCode: string): Promise<string> {
+  if (!/^[A-Za-z0-9]{8}$/.test(joinCode.trim())) throw new Error('Enter the eight-character classroom code from your teacher.');
   const response = await supabase.rpc('join_classroom_by_code', { p_join_code: joinCode });
   // A duplicate membership is an idempotent success for the invitation flow.
   if (response.error?.code === '23505') return '';
@@ -87,4 +90,10 @@ export async function joinClassroomByCode(joinCode: string): Promise<string> {
     if (typeof id === 'string') return id;
   }
   throw new Error('The classroom enrollment function returned an unexpected result.');
+}
+
+export async function removeClassroomMember(classroomId: string, studentId: string): Promise<void> {
+  await getTeacherClassroom(classroomId);
+  const { error } = await supabase.from('classroom_members').delete().eq('classroom_id', classroomId).eq('student_id', studentId).select('id').single();
+  if (error) throw error;
 }

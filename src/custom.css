@@ -96,3 +96,22 @@ nav a:hover { background: #f0ebfc; color: #7251c8; }
 @media (max-width: 650px) { .classroom-create, .classroom-row { align-items: stretch; flex-direction: column; } .classroom-panel { margin: 16px 12px; } }
 @media (max-width: 650px) { .student-shortcuts { grid-template-columns: 1fr; } .student-code-form { align-items: stretch; flex-direction: column; } }
 @media (max-width: 860px) { .builder-editor-grid { grid-template-columns: 1fr; } .activity-list-item { flex-direction: column; } .teacher-builder-topbar, .activity-header { flex-direction: column; align-items: flex-start; } .builder-actions, .activity-list-actions { width: 100%; } }
+
+/* Phase 7 assessment layout candidate; database integration remains unvalidated. */
+.assessment-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.teacher-builder-shell h1, .teacher-builder-shell h2, .teacher-builder-shell h3, .student-activity-shell h1, .classroom-row h2 { overflow-wrap: anywhere; }
+.builder-editor-grid > *, .activity-list-item > *, .classroom-row > * { min-width: 0; }
+.modal-backdrop { overflow-y: auto; }
+.assignment-dialog { max-height: calc(100dvh - 40px); overflow-y: auto; overflow-wrap: anywhere; }
+.results-table-scroll { max-width: 100%; overflow-x: auto; }
+.results-table { width: 100%; border-collapse: collapse; text-align: left; min-width: 720px; }
+.results-table th, .results-table td { padding: 12px; border-bottom: 1px solid #e4dff3; }
+.results-table td:first-child { max-width: 220px; overflow-wrap: anywhere; }
+.teacher-builder-shell select, .teacher-builder-shell input, .simple-page select { max-width: 100%; min-width: 0; }
+@media (max-width: 600px) {
+  .builder-two-col { grid-template-columns: 1fr; }
+  .builder-card-header, .section-title { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+  .builder-actions, .activity-actions { flex-wrap: wrap; }
+  .modal-backdrop { padding: 12px; }
+  .assignment-dialog { max-height: calc(100dvh - 24px); }
+}

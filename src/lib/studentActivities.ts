@@ -1,5 +1,6 @@
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from './supabase';
+import { remainingSeconds, scorePercentage } from './assessment';
 
 export type AttemptStatus = 'in_progress' | 'submitted' | 'expired';
 export type AssignmentStatus = 'unavailable' | 'not_yet_available' | 'not_started' | 'in_progress' | 'submitted' | 'expired' | 'past_due';
@@ -18,6 +19,9 @@ export interface AssignedActivity {
   total_questions: number;
   time_limit_seconds: number;
   status: AssignmentStatus;
+  classroom_name: string;
+  result: StudentActivityResult | null;
+  historical?: boolean;
 }
 
 export type StudentActivityAssignment = AssignedActivity;
@@ -34,6 +38,7 @@ export interface SafeQuizQuestion {
 export type StudentActivityQuestion = SafeQuizQuestion;
 
 export interface StudentActivityResponse {
+  server_now?: string;
   assignment: { id: string; classroom_id: string; quiz_id: string; available_from: string | null; due_at: string | null; is_published: boolean };
   activity: { id: string; title: string; description: string; instructions: string; category: string; difficulty: string; time_limit_seconds: number; total_questions: number; is_published: boolean };
   state: 'available' | 'not_yet_available' | 'past_due';
@@ -44,6 +49,7 @@ export interface StartedAttempt {
   id: string;
   status: AttemptStatus;
   started_at: string;
+  effective_deadline: string | null;
   total_questions: number;
   total_points: number;
 }
@@ -92,14 +98,39 @@ export async function listAssignedActivities(): Promise<StudentActivityAssignmen
   const { data: auth, error: authError } = await supabase.auth.getUser();
   if (authError || !auth.user) throw new Error('Please sign in to view your assigned activities.');
 
+  // Terminal results belong to the student even after unpublication or removal.
+  // Do not broaden quiz/classroom metadata access to implement history.
+  const { data: history, error: historyError } = await supabase.from('quiz_attempts')
+    .select('id, assignment_id, quiz_id, status, score, total_questions, points_earned, total_points, time_taken, submitted_at')
+    .eq('student_id', auth.user.id).in('status', ['submitted', 'expired']).order('submitted_at', { ascending: false });
+  if (historyError) throw new Error('Activity history could not be loaded. Please refresh the page.');
+  const mergeHistory = (current: StudentActivityAssignment[]): StudentActivityAssignment[] => {
+    const visible = new Set(current.map(item => item.id));
+    const historical = (history ?? []).flatMap(attempt => {
+      if (!attempt.assignment_id || visible.has(attempt.assignment_id)) return [];
+      visible.add(attempt.assignment_id);
+      return [{ id: attempt.assignment_id, quiz_id: attempt.quiz_id, classroom_id: 'history',
+        available_from: null, due_at: null, title: 'Previous activity', classroom_name: 'Historical results',
+        description: 'This completed attempt remains available when the assignment is no longer listed.',
+        instructions: null, category: '', difficulty: '', total_questions: attempt.total_questions, time_limit_seconds: 0,
+        historical: true, status: attempt.status as AttemptStatus,
+        result: { status: attempt.status as AttemptStatus, attempt_id: attempt.id, score: attempt.score,
+          total_questions: attempt.total_questions, points_earned: attempt.points_earned, total_points: attempt.total_points,
+          percentage: scorePercentage(attempt.points_earned, attempt.total_points) ?? 0,
+          time_taken: attempt.time_taken, submitted_at: attempt.submitted_at },
+      }];
+    });
+    return [...current, ...historical];
+  };
+
   const { data: memberships, error: membershipError } = await supabase
     .from('classroom_members').select('classroom_id').eq('student_id', auth.user.id);
   if (membershipError) throw new Error('Assigned activities could not be loaded. Please try again.');
   const classroomIds = [...new Set((memberships ?? []).map(row => row.classroom_id))];
-  if (!classroomIds.length) return [];
+  if (!classroomIds.length) return mergeHistory([]);
 
   const { data, error } = await supabase.from('classroom_activity_assignments')
-    .select('id, classroom_id, quiz_id, available_from, due_at, is_published, quiz:quizzes!inner(id, title, description, instructions, category, difficulty, total_questions, time_limit_seconds, is_published)')
+    .select('id, classroom_id, quiz_id, available_from, due_at, is_published, classroom:classrooms!inner(name), quiz:quizzes!inner(id, title, description, instructions, category, difficulty, total_questions, time_limit_seconds, is_published)')
     .in('classroom_id', classroomIds).eq('is_published', true).order('created_at', { ascending: false });
   if (error) throw new Error('Assigned activities could not be loaded. Please try again.');
 
@@ -119,13 +150,14 @@ export async function listAssignedActivities(): Promise<StudentActivityAssignmen
       difficulty: String(quiz.difficulty ?? ''),
       total_questions: Number(quiz.total_questions ?? 0),
       time_limit_seconds: Number(quiz.time_limit_seconds ?? 0),
+      classroom_name: String(relation(row.classroom as unknown as { name: string } | { name: string }[] | null)?.name ?? 'Classroom'),
     }];
   });
 
-  if (!rows.length) return [];
+  if (!rows.length) return mergeHistory([]);
   const assignmentIds = [...new Set(rows.map(row => row.id))];
   const { data: attempts, error: attemptsError } = await supabase.from('quiz_attempts')
-    .select('assignment_id, status').eq('student_id', auth.user.id).in('assignment_id', assignmentIds);
+    .select('id, assignment_id, status, effective_deadline, score, total_questions, points_earned, total_points, time_taken, submitted_at').eq('student_id', auth.user.id).in('assignment_id', assignmentIds).order('started_at', { ascending: false });
   if (attemptsError) throw new Error('Activity progress could not be loaded. Please refresh the page.');
   const statusesByAssignment = new Map<string, AttemptStatus[]>();
   for (const attempt of attempts ?? []) {
@@ -134,9 +166,23 @@ export async function listAssignedActivities(): Promise<StudentActivityAssignmen
     statuses.push(attempt.status as AttemptStatus);
     statusesByAssignment.set(attempt.assignment_id, statuses);
   }
-  const now = Date.now();
-
-  return rows.map(row => ({ ...row, status: assignmentStatus(row, statusesByAssignment.get(row.id) ?? [], now) }));
+  return mergeHistory(await Promise.all(rows.map(async row => {
+    const attempt = (attempts ?? []).find(item => item.assignment_id === row.id);
+    let status: AssignmentStatus = assignmentStatus(row, statusesByAssignment.get(row.id) ?? [], Date.now());
+    // Availability comes from the authenticated service, never browser permission checks.
+    if (!attempt || attempt.status === 'in_progress') {
+      const safe = await getAssignedActivity(row.id);
+      const now = safe.server_now ? Date.parse(safe.server_now) : Date.now();
+      status = safe.state === 'available' ? (attempt ? 'in_progress' : 'not_started') : safe.state;
+      if (attempt?.status === 'in_progress' && remainingSeconds(attempt.effective_deadline, now) === 0) status = 'expired';
+    } else status = attempt.status as AttemptStatus;
+    const result: StudentActivityResult | null = attempt && ['submitted', 'expired'].includes(attempt.status) ? {
+      status: attempt.status as AttemptStatus, attempt_id: attempt.id, score: attempt.score, total_questions: attempt.total_questions,
+      points_earned: attempt.points_earned, total_points: attempt.total_points, percentage: scorePercentage(attempt.points_earned, attempt.total_points) ?? 0,
+      time_taken: attempt.time_taken, submitted_at: attempt.submitted_at,
+    } : null;
+    return { ...row, status, result };
+  })));
 }
 
 function userFacingStatus(status: number, responseBody?: unknown): string {
@@ -186,5 +232,6 @@ export function startAssignedActivity(assignmentId: string): Promise<StartAttemp
 
 /** Sends only the assignment, server-created attempt, and student answers. */
 export function submitAssignedActivity(request: SubmitAttemptRequest): Promise<SubmitAttemptResponse> {
-  return callStudentActivityBackend({ action: 'submit', ...request });
+  return callStudentActivityBackend({ action: 'submit', assignment_id: request.assignment_id,
+    attempt_id: request.attempt_id, answers: request.answers.map(({ question_id, answer }) => ({ question_id, answer })) });
 }
